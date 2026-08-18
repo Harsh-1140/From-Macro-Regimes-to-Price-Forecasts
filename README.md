@@ -85,7 +85,8 @@ source("02_HYDRA_Pipeline.R")
 # 5. Output publication-ready diagnostic charts and residual plots
 source("03_Results_Plots.R")
 ```
-Repository Structure
+## Repository Structure
+``` text
 ├── Data Scraping.R             # Script 0: Automated data ingestion (FRED, Yahoo, EPU, GPRD)
 ├── Macro_regimes.R             # Script 1: Stage 1 Macro-regime K-Means clustering & visualizations
 ├── 01_EDA.R                    # Script 2: Exploratory data analysis, distributions & correlation matrix
@@ -94,8 +95,6 @@ Repository Structure
 │
 ├── regime_data_2000_2025.csv   # Unified multi-source macroeconomic panel (2000–2025)
 ├── combined_prices.csv         # Daily energy commodity panel (Investing.com)
-├── merged_market_data.csv      # Merged master cross-asset dataset
-├── merged_red_regime_data.csv  # Filtered R1 (Late-Cycle) dataset
 │
 ├── outputs/                    # Exported figures, tables & model objects
 │   ├── eda_01_crude_oil_timeseries.png
@@ -116,7 +115,8 @@ Repository Structure
 │
 ├── 443_Report.pdf              # Comprehensive academic research report
 └── README.md                   # Project documentation
-Authors & Course Information
+```
+### Authors 
 Akshat Saxena (230099)
 
 Aryan Deo (230213)
@@ -127,9 +127,8 @@ Rupant Dixit (230883)
 
 Utkarsh Kesharwani (231108)
 
-Department of Mathematics and Statistics, Indian Institute of Technology Kanpur (IIT Kanpur)
 
-References
+### References
 Breiman, L. (2001). Random forests. Machine Learning, 45(1), 5–32.
 
 Caldara, D., & Iacoviello, M. (2022). Measuring geopolitical risk. American Economic Review, 112(4), 1194–1225.
