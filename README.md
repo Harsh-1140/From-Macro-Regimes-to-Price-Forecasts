@@ -5,9 +5,9 @@
 [![Status](https://img.shields.io/badge/Status-Complete-brightgreen.svg)]()
 
 > **Course Project — MTH443**  
-> **Department of Mathematics and Statistics, Indian Institute of Technology Kanpur (IIT Kanpur)**  
+> **Department of Statistics and Data Science, Indian Institute of Technology Kanpur (IIT Kanpur)**  
 
-This repository contains the complete statistical pipeline and modeling framework for **MTH443**. The objective is to endogenously classify macroeconomic regimes from multi-source financial and policy uncertainty indicators, and condition a 9-stage stacked ensemble pipeline (**HYDRA**) on late-cycle market environments to accurately forecast daily WTI crude oil prices.
+This repository contains the complete statistical pipeline and modeling framework for the course project of **MTH443**. The objective is to endogenously classify macroeconomic regimes from multi-source financial and policy uncertainty indicators, and condition a 9-stage stacked ensemble pipeline (**HYDRA**) on late-cycle market environments to accurately forecast daily WTI crude oil prices.
 
 ---
 
