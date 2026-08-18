@@ -1,104 +1,103 @@
-```markdown
 # From Macro Regimes to Price Forecasts: A Two-Stage Statistical Pipeline for Crude-Oil Prediction
 
 [![R](https://img.shields.io/badge/Language-R_4.x-blue.svg)](https://www.r-project.org/)
 [![Course](https://img.shields.io/badge/IIT_Kanpur-MTH443-orange.svg)](https://www.iitk.ac.in/)
 [![Status](https://img.shields.io/badge/Status-Complete-brightgreen.svg)]()
 
-This repository contains the complete statistical pipeline, data scraping workflows, exploratory analysis, and predictive modeling for the **MTH443 Course Project** at **Indian Institute of Technology Kanpur (IIT Kanpur)**.
+> **Course Project — MTH443**  
+> **Department of Mathematics and Statistics, Indian Institute of Technology Kanpur (IIT Kanpur)**  
+
+This repository contains the complete statistical pipeline and modeling framework for **MTH443**. The objective is to endogenously classify macroeconomic regimes from multi-source financial and policy uncertainty indicators, and condition a 9-stage stacked ensemble pipeline (**HYDRA**) on late-cycle market environments to accurately forecast daily WTI crude oil prices.
 
 ---
 
-## Executive Summary
+## Problem Overview & Dataset
 
-Crude oil prices are governed by a complex mixture of demand fundamentals, supply elasticity, and macro-financial risk factors. Standard global models treating all market days uniformly suffer from parameter instability due to unobserved business cycle shifts.
+* **Test Benchmark**: Held-out out-of-sample window of **December 2024 (19 trading days)**.
+* **Macroeconomic Panel (2000–2025, 6,783 trading days)**:
+  * **CBOE Volatility Index (`^VIX`)**: Implied 30-day S&P 500 volatility from Yahoo Finance.
+  * **10Y & 2Y Treasury Constant Maturity Yields (`DGS10`, `DGS2`)**: Federal Reserve Economic Data (FRED) API to compute term spread.
+  * **Economic Policy Uncertainty Index (`EPU`)**: News-based policy uncertainty index from Baker, Bloom, & Davis.
+  * **Geopolitical Risk Daily Index (`GPRD`)**: Newspaper-based geopolitical risk metric from Caldara & Iacoviello.
+  * **Cross-Asset Reference Series**: Front-month WTI Crude (`CL=F`), COMEX Gold (`GC=F`), S&P 500 (`^GSPC`), and US Dollar Index (`DX-Y.NYB`).
+* **Commodity Panel**: Daily closing prices for WTI crude oil, gas oil, heating oil, and natural gas from Investing.com.
+* **Evaluation Metric**: Root Mean Squared Error (**RMSE**), Mean Absolute Error (**MAE**), and out-of-sample $R^2$ score.
 
-We implement a **two-stage statistical framework**:
-1. **Stage 1: Macro-Regime Identification (2000–2025)**: Endogenous classification using $K$-Means clustering over five standardized macro-financial indicators (VIX, 10Y–2Y Treasury spread, Economic Policy Uncertainty, Geopolitical Risk Daily, and Gold-to-Oil ratio). Four distinct, highly persistent regimes emerge: *Calm Expansion*, *Late-Cycle / Moderate Stress*, *Acute Crisis*, and *Policy Uncertainty-Dominated*.
-2. **Stage 2: Conditional Forecasting with HYDRA**: Isolating the late-cycle regime (the "red" regime, 2,443 trading days) to fit **HYDRA**—a 9-stage hybrid pipeline combining PCA, K-Means micro-clustering, Fisher LDA, Naive Bayes, regime-specialized expert regressors (SVR, GBM, MLP), four global learners, and a gradient-boosted meta-stacker.
+---
+
+## Methodology & Pipeline Architecture
+
+### Stage 1: Macro-Regime Discovery (2000–2025)
+Using $K$-Means clustering ($K=4$, validated via the Elbow method) on five standardized macro-financial features (VIX, 10Y–2Y yield spread, EPU index, GPRD index, and gold-to-oil ratio), we endogenously recover four persistent economic states without arbitrary *ex-ante* cutoffs:
+1. **$R3$ (Green) — Calm Expansion (3,204 days)**: Low volatility, steep yield curve, subdued policy uncertainty.
+2. **$R2$ (Blue) — Acute Crisis (638 days)**: Extreme VIX and GPRD, rapid Fed easing (2001, 2008 GFC, 2020 COVID crash).
+3. **$R1$ (Red) — Late-Cycle / Moderate Stress (2,443 days)**: Flattened yield curve, moderate VIX, elevated policy uncertainty.
+4. **$R4$ (Purple) — Policy-Uncertainty Dominated (437 days)**: Extremely high EPU index with compressed cyclical commodity demand (2020–2022).
+
+### Stage 2: The 9-Stage HYDRA Forecasting Pipeline
+Conditioning exclusively on the $R1$ (Red) late-cycle sub-sample (2,443 trading days):
+1. **Preprocessing & Lag Engineering**: Constructs target lags (lags 1, 2, 3, 5) and includes S&P 500 and stress indices.
+2. **Stress Feature PCA**: Extracts PC1 and PC2 from standardized stress features, explaining **81.8%** of the stress space variance.
+3. **$K$-Means Micro-Regimes ($K=3$)**: Discovers *Low-Stress*, *Med-Stress*, and *High-Stress* states and calculates soft-membership weights via normalized negative distance softmax.
+4. **Fisher Linear Discriminant Analysis (LDA)**: Supervised projection maximizing micro-cluster separation along two discriminant coordinates.
+5. **Gaussian Naive Bayes**: Computes calibrated posterior class probabilities across the micro-regimes as additional meta-features.
+6. **Regime-Expert Regressors**: Fits specialized learners: SVR ($\text{cost}=200, \epsilon=0.3$) for High-Stress, GBM (150 trees, depth 4) for Med-Stress, and MLP (8 hidden units) for Low-Stress, blended via soft-membership weights.
+7. **Global Regressors**: Trains unconstrained global models (SVR, MLP, Random Forest, GBM) evaluated with 5-fold rolling-origin time-series cross-validation.
+8. **Level-2 Meta-Stacker**: A Gradient-Boosted Decision Tree model (100 trees, depth 3, $\eta=0.05$) trained on Level-1 predictions to dynamically combine expert and global signals.
+9. **Test Evaluation**: Final performance assessment against the December 2024 held-out test series.
 
 ---
 
 ## Model Performance Benchmark
 
-Evaluated on the held-out test window of **December 2024 (19 trading days)**:
+Evaluated on the December 2024 holdout set (19 trading days):
 
-| Model | Test RMSE (USD) | Test MAE (USD) | $R^2$ Score | Description |
+| Model | Test RMSE (USD) | Test MAE (USD) | Test $R^2$ Score | Characteristics |
 | :--- | :---: | :---: | :---: | :--- |
-| **Global Random Forest** | **$0.775** | **$0.624** | **0.372** | Bagged tree ensemble exploiting autoregressive features |
-| **Global Gradient Boosting** | $0.810 | $0.686 | 0.314 | Forward stagewise additive gradient boosting |
+| **Global Random Forest** | **$0.775** | **$0.624** | **0.372** | Best single model; effectively leverages AR lag-1 correlation ($r = 0.99$) |
+| **Global Gradient Boosting** | $0.810 | $0.686 | 0.314 | Forward stagewise additive regression tree ensemble |
 | **HYDRA (Meta-Stacker)** | **$0.813** | **$0.627** | **0.309** | 9-stage stacked ensemble combining expert & global learners |
-| **Global SVR** | $1.038 | $0.880 | -0.127 | Radial basis kernel Support Vector Regression |
+| **Global SVR** | $1.038 | $0.880 | -0.127 | Radial basis kernel $\epsilon$-insensitive support vector regressor |
 | **Regime-Expert Blend** | $2.503 | $1.968 | -5.549 | Soft-weighted blend of 3 sub-regime expert models |
-| **Global MLP** | $4.476 | $4.361 | -19.952 | Single-hidden-layer neural network |
+| **Global MLP (Neural Net)** | $4.476 | $4.361 | -19.952 | Failed to capture tabular linear/autoregressive persistence |
 
-> **Key Finding**: While pure tree ensembles dominate short-horizon autoregressive forecasting, **HYDRA provides robust insurance against base-learner failure**—safely recovering from the failure of the Global MLP ($RMSE = \$4.48$) and Expert Blend ($RMSE = \$2.50$) to tie the best-performing tree models ($RMSE = \$0.81$).
-
----
-
-## System Architecture
-
-
-```
-
-# ========================================================================================
-STAGE 1: MACRO-REGIME CLASSIFICATION (2000–2025)
-Features: VIX | 10Y-2Y Spread | EPU Index | GPRD Index | Gold/Oil Ratio (Standardized)
-
-```
-                                       │
-                          [K-Means Clustering: K = 4]
-                                       │
-  ┌────────────────────┬───────────────┴───────────────┬───────────────────┐
-  ▼                    ▼                               ▼                   ▼
-
-```
-
-# R3 (Green)           R2 (Blue)                       R1 (Red)            R4 (Purple)
-Calm Expansion       Acute Crisis                  Late-Cycle / Stress   Policy Uncertainty
-3,204 days           638 days                        2,443 days             437 days
-(2003-07, 2013-15) (2008 GFC, 2020 Crash)         (Post-2015, 2023-24)      (2020–2022)
-│
-[Extract Red Regime Dataset]
-│
-=================================▼==
-STAGE 2: THE HYDRA FORECASTING PIPELINE
-
-# [1] Preprocessing: Autoregressive lags (1, 2, 3, 5 days) + S&P 500 & Stress Features
-[2] PCA on Stress Space: PC1 and PC2 explain 81.8% of stress-feature variance
-[3] K-Means Micro-Regimes (K = 3): Low-Stress, Med-Stress, High-Stress + Softmax Weights
-[4] Fisher Linear Discriminant Analysis: Supervised projection via micro-regime labels
-[5] Naive Bayes: Multivariate class-posterior generation as meta-features
-[6] Regime-Expert Regressors:
-• High-Stress Expert: SVR (RBF Kernel, C=200, eps=0.3)
-• Med-Stress Expert : GBM (150 trees, depth=4, lr=0.08)
-• Low-Stress Expert : MLP (8 hidden units, decay=1e-3)
-→ Blended via soft membership weights
-[7] Global Regressors: SVR, MLP, Random Forest, GBM (5-Fold Rolling TS-CV)
-[8] Meta-Stacker: Gradient Boosted Trees trained on Level-1 predictions
-[9] Test Evaluation: December 2024 Out-of-Sample Performance
-
-```
+> **Key Takeaway**: While tree ensembles dominate autoregressive prediction, **HYDRA provides robust insurance against base-learner failure**. Despite the failure of the standalone Global MLP ($RMSE = \$4.48$), the meta-stacker automatically discounted erroneous signals and tied the best tree models ($RMSE = \$0.81$).
 
 ---
 
-## Repository Structure
+## Pipeline Execution & Verification
 
+To execute the entire statistical pipeline from scratch, run the scripts in sequential order:
 
+```R
+# 1. Fetch external data and compile the 2000–2025 macro panel
+source("Data Scraping.R")
+
+# 2. Perform Stage 1 Macro-Regime K-Means clustering & extract the Red Regime
+source("Macro_regimes.R")
+
+# 3. Generate exploratory statistical plots, distributions, and correlation matrices
+source("01_EDA.R")
+
+# 4. Train the 9-Stage HYDRA Pipeline & evaluate on Dec 2024 test data
+source("02_HYDRA_Pipeline.R")
+
+# 5. Output publication-ready diagnostic charts and residual plots
+source("03_Results_Plots.R")
 ```
-
-├── Data Scraping.R             # Script 0: Automated data retrieval (FRED, Yahoo, EPU, GPRD)
-├── Macro_regimes.R             # Script 1: Stage 1 Macro-regime K-Means & barcode visualization
+Repository Structure
+├── Data Scraping.R             # Script 0: Automated data ingestion (FRED, Yahoo, EPU, GPRD)
+├── Macro_regimes.R             # Script 1: Stage 1 Macro-regime K-Means clustering & visualizations
 ├── 01_EDA.R                    # Script 2: Exploratory data analysis, distributions & correlation matrix
-├── 02_HYDRA_Pipeline.R         # Script 3: Complete 9-stage HYDRA pipeline and modeling engine
-├── 03_Results_Plots.R          # Script 4: Diagnostic visual generation & error analysis
+├── 02_HYDRA_Pipeline.R         # Script 3: Complete 9-stage HYDRA modeling & stacking engine
+├── 03_Results_Plots.R          # Script 4: Generates evaluation charts, biplots & residual diagnostics
 │
-├── regime_data_2000_2025.csv   # Aligned macro panel (2000–2025)
-├── combined_prices.csv         # Daily commodity price dataset (Investing.com)
-├── merged_market_data.csv      # Merged cross-asset master dataset
+├── regime_data_2000_2025.csv   # Unified multi-source macroeconomic panel (2000–2025)
+├── combined_prices.csv         # Daily energy commodity panel (Investing.com)
+├── merged_market_data.csv      # Merged master cross-asset dataset
 ├── merged_red_regime_data.csv  # Filtered R1 (Late-Cycle) dataset
 │
-├── outputs/                    # Output directory for exported figures, tables & RDS objects
+├── outputs/                    # Exported figures, tables & model objects
 │   ├── eda_01_crude_oil_timeseries.png
 │   ├── eda_02_distributions.png
 │   ├── eda_03_correlation_matrix.png
@@ -115,72 +114,26 @@ STAGE 2: THE HYDRA FORECASTING PIPELINE
 │   ├── hydra_predictions_dec2024.csv
 │   └── hydra_objects.rds
 │
-├── 443_Report.pdf              # Comprehensive project report
+├── 443_Report.pdf              # Comprehensive academic research report
 └── README.md                   # Project documentation
+Authors & Course Information
+Akshat Saxena (230099)
 
-```
+Aryan Deo (230213)
 
----
+Harsh Agrawalla (230443)
 
-## Installation & Setup
+Rupant Dixit (230883)
 
-Ensure you have R installed ($\ge 4.2$). Install the required CRAN packages:
+Utkarsh Kesharwani (231108)
 
-```R
-install.packages(c(
-  "quantmod", "fredr", "readr", "dplyr", "lubridate", "tidyr", 
-  "zoo", "httr", "readxl", "roll", "ggplot2", "factoextra", 
-  "cluster", "corrplot", "gridExtra", "scales", "MASS", 
-  "e1071", "nnet", "randomForest", "gbm", "caret"
-))
+Department of Mathematics and Statistics, Indian Institute of Technology Kanpur (IIT Kanpur)
 
-```
+References
+Breiman, L. (2001). Random forests. Machine Learning, 45(1), 5–32.
 
----
+Caldara, D., & Iacoviello, M. (2022). Measuring geopolitical risk. American Economic Review, 112(4), 1194–1225.
 
-## Pipeline Execution
+Baker, S. R., Bloom, N., & Davis, S. J. (2016). Measuring economic policy uncertainty. Quarterly Journal of Economics, 131(4), 1593–1636.
 
-Run the scripts in sequential order:
-
-```R
-# Step 1: Collect macro-financial indicators and build the 2000–2025 master panel
-source("Data Scraping.R")
-
-# Step 2: Run Stage 1 Macro-Regime K-Means clustering and filter to Red Regime
-source("Macro_regimes.R")
-
-# Step 3: Run Exploratory Data Analysis & generate distribution/correlation plots
-source("01_EDA.R")
-
-# Step 4: Run the 9-Stage HYDRA Pipeline & evaluate on Dec 2024 test data
-source("02_HYDRA_Pipeline.R")
-
-# Step 5: Generate evaluation figures and comparison charts
-source("03_Results_Plots.R")
-
-```
-
----
-
-## Authors
-
-* **Akshat Saxena** (230099)
-* **Aryan Deo** (230213)
-* **Harsh Agrawalla** (230443)
-* **Rupant Dixit** (230883)
-* **Utkarsh Kesharwani** (231108)
-
-*Department of Mathematics and Statistics, Indian Institute of Technology Kanpur*
-
----
-
-## References
-
-* **Breiman, L. (2001).** Random forests. *Machine Learning*, 45(1), 5–32.
-* **Caldara, D., & Iacoviello, M. (2022).** Measuring geopolitical risk. *American Economic Review*, 112(4), 1194–1225.
-* **Baker, S. R., Bloom, N., & Davis, S. J. (2016).** Measuring economic policy uncertainty. *Quarterly Journal of Economics*, 131(4), 1593–1636.
-* **Wolpert, D. H. (1992).** Stacked generalization. *Neural Networks*, 5(2), 241–259.
-
-```
-
-```
+Wolpert, D. H. (1992). Stacked generalization. Neural Networks, 5(2), 241–259.
